@@ -1,9 +1,11 @@
-#include <iostream>
-#include <string>
-#include <dotenv.h>
-#include <cpr/cpr.h>
-#include <nlohmann/json.hpp>
 #include "GithubAccount.hpp"
+
+#include <cpr/cpr.h>
+#include <dotenv.h>
+
+#include <iostream>
+#include <nlohmann/json.hpp>
+#include <string>
 
 using json = nlohmann::json;
 
@@ -27,14 +29,10 @@ bool AuthenticateGithub() {
         return false;
     }
 
-    auto response = cpr::Get(
-        cpr::Url{"https://api.github.com/user"},
-        cpr::Header{
-            {"Accept", "application/vnd.github+json"},
-            {"User-Agent", "Argxx"},
-            {"Authorization", "Bearer " + token}
-        }
-    );
+    auto response = cpr::Get(cpr::Url{"https://api.github.com/user"},
+                             cpr::Header{{"Accept", "application/vnd.github+json"},
+                                         {"User-Agent", "Argxx"},
+                                         {"Authorization", "Bearer " + token}});
 
     return response.status_code == 200;
 }
@@ -46,11 +44,9 @@ std::string GetRepoFullPath(const std::string& repo_name) {
         return "";
     }
 
-    cpr::Header headers{
-        {"Accept", "application/vnd.github+json"},
-        {"User-Agent", "Argxx"},
-        {"Authorization", "Bearer " + token}
-    };
+    cpr::Header headers{{"Accept", "application/vnd.github+json"},
+                        {"User-Agent", "Argxx"},
+                        {"Authorization", "Bearer " + token}};
 
     std::string full_repo_identifier = repo_name;
 
@@ -58,7 +54,8 @@ std::string GetRepoFullPath(const std::string& repo_name) {
     if (repo_name.find('/') == std::string::npos) {
         auto user_res = cpr::Get(cpr::Url{"https://api.github.com/user"}, headers);
         if (user_res.status_code != 200) {
-            std::cerr << "Failed to fetch user info: " << user_res.status_code << " - " << user_res.text << std::endl;
+            std::cerr << "Failed to fetch user info: " << user_res.status_code << " - "
+                      << user_res.text << std::endl;
             return "";
         }
         auto user_json = json::parse(user_res.text);
@@ -66,9 +63,11 @@ std::string GetRepoFullPath(const std::string& repo_name) {
         full_repo_identifier = login + "/" + repo_name;
     }
 
-    auto repo_res = cpr::Get(cpr::Url{"https://api.github.com/repos/" + full_repo_identifier}, headers);
+    auto repo_res =
+        cpr::Get(cpr::Url{"https://api.github.com/repos/" + full_repo_identifier}, headers);
     if (repo_res.status_code != 200) {
-        std::cerr << "Failed to find repo: " << repo_res.status_code << " - " << repo_res.text << std::endl;
+        std::cerr << "Failed to find repo: " << repo_res.status_code << " - " << repo_res.text
+                  << std::endl;
         return "";
     }
 

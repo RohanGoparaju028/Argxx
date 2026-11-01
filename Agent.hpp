@@ -1,5 +1,8 @@
-#ifndef Agent 
+#ifndef AGENT_HPP
+#define AGENT_HPP
 
-void createAgent(std::string repo);
+#include <string>
 
-#endif
+void createAgent(const std::string& repo);
+
+#endif  // AGENT_HPP

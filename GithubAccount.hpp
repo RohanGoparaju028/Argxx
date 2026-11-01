@@ -7,4 +7,4 @@ std::string LoadEnvVar(const std::string& key, const std::string& env_path = ".e
 bool AuthenticateGithub();
 std::string GetRepoFullPath(const std::string& repo_name);
 
-#endif // GITHUB_ACCOUNT_HPP
+#endif  // GITHUB_ACCOUNT_HPP
