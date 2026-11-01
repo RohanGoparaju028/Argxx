@@ -1,8 +1,6 @@
 #include <iostream>
-#include <fstream>
 #include <string>
-#include <algorithm>
-#include <cctype>
+#include <dotenv.h>
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
 #include "GithubAccount.hpp"
@@ -10,54 +8,15 @@
 using json = nlohmann::json;
 
 std::string LoadEnvVar(const std::string& key, const std::string& env_path) {
-    std::ifstream file(env_path);
-    if (!file.is_open()) {
-        return "";
-    }
-
-    std::string line;
-    while (std::getline(file, line)) {
-        // Strip leading whitespace
-        line.erase(line.begin(), std::find_if(line.begin(), line.end(), [](unsigned char ch) {
-            return !std::isspace(ch);
-        }));
-
-        if (line.empty() || line[0] == '#') continue;
-
-        auto pos = line.find('=');
-        if (pos != std::string::npos) {
-            std::string k = line.substr(0, pos);
-            std::string v = line.substr(pos + 1);
-
-            auto trim = [](std::string& s) {
-                while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) s.erase(s.begin());
-                while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) s.pop_back();
-            };
-            trim(k);
-            trim(v);
-
-            // Strip enclosing quotes
-            if (v.size() >= 2 && ((v.front() == '"' && v.back() == '"') || (v.front() == '\'' && v.back() == '\''))) {
-                v = v.substr(1, v.size() - 2);
-            }
-
-            if (k == key) {
-                return v;
-            }
-        }
-    }
-    return "";
+    dotenv::init(dotenv::Preserve, env_path.c_str());
+    return dotenv::getenv(key.c_str());
 }
 
 static std::string GetPAT() {
-    std::string token = LoadEnvVar("PAT_TOKEN");
-    if (token.empty()) token = LoadEnvVar("GITHUB_TOKEN");
-    if (token.empty()) token = LoadEnvVar("PAT");
-    if (token.empty()) {
-        const char* env_p = std::getenv("PAT_TOKEN");
-        if (!env_p) env_p = std::getenv("GITHUB_TOKEN");
-        if (env_p) token = env_p;
-    }
+    dotenv::init(dotenv::Preserve);
+    std::string token = dotenv::getenv("PAT_TOKEN");
+    if (token.empty()) token = dotenv::getenv("GITHUB_TOKEN");
+    if (token.empty()) token = dotenv::getenv("PAT");
     return token;
 }
 

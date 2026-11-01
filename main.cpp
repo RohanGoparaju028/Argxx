@@ -1,5 +1,6 @@
 #include <iostream>
 #include "GithubAccount.hpp"
+#include "Agent.hpp"
 
 using namespace std;
 
@@ -9,6 +10,7 @@ int main() {
 
     if (!full_path.empty()) {
         cout << "Full Repo Path: " << full_path << endl;
+	createAgent(full_path);
     } else {
         cout << "Could not retrieve repo path." << endl;
     }
