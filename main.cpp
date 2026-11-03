@@ -1,8 +1,8 @@
 #include <iostream>
 
 #include "Agent.hpp"
-#include "GithubAccount.hpp"
 #include "Folder.hpp"
+#include "GithubAccount.hpp"
 
 using namespace std;
 
@@ -12,8 +12,8 @@ int main() {
 
     if (!full_path.empty()) {
         cout << "Full Repo Path: " << full_path << endl;
-	createGraphFolder();
-	createIssueFolder();
+        createGraphFolder();
+        createIssueFolder();
         createAgent(full_path);
     } else {
         cout << "Could not retrieve repo path." << endl;

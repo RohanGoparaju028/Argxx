@@ -1,8 +1,9 @@
 // The purpose of this file to create Gemma4:e4b that is served through ollama for an ai agent
 #include "Agent.hpp"
-#include<algorithm>
+
 #include <yaml-cpp/yaml.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <unordered_map>
@@ -31,19 +32,19 @@ std::unordered_map<std::string, std::string> configureModel() {
                 agent_info[field] = emitter.c_str();
             }
         }
-	YAML::Emitter emitter;
-	emitter << agent_info["tools"];
-	std::string str = emitter.c_str();
-	str.erase(std::remove(str.begin(),str.end(),'-'),str.end());
-	auto it = std::find(str.begin(),str.end(),' ');
-	if(it != str.end()) {
-	  str.erase(it);
-	}
-	size_t pos = 0;
-        while ((pos = str.find("\\n", pos)) != std::string::npos) {
-            str.erase(pos, 2); 
+        YAML::Emitter emitter;
+        emitter << agent_info["tools"];
+        std::string str = emitter.c_str();
+        str.erase(std::remove(str.begin(), str.end(), '-'), str.end());
+        auto it = std::find(str.begin(), str.end(), ' ');
+        if (it != str.end()) {
+            str.erase(it);
         }
-	agent_info["tools"] = str;
+        size_t pos = 0;
+        while ((pos = str.find("\\n", pos)) != std::string::npos) {
+            str.erase(pos, 2);
+        }
+        agent_info["tools"] = str;
         return agent_info;
     } catch (const YAML::Exception& e) {
         std::cerr << "Failed to parse " << configfile << ": " << e.what() << std::endl;
