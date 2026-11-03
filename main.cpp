@@ -4,19 +4,19 @@
 #include "Folder.hpp"
 #include "GithubAccount.hpp"
 
-using namespace std;
-
 int main() {
-    string repo_name = "Argxx";  // for example
-    string full_path = GetRepoFullPath(repo_name);
+    std::string repo_name;
+    std::cout << "Enter your repo name: ";
+    std::cin >> repo_name;
+    std::string full_path = GetRepoFullPath(repo_name);
 
     if (!full_path.empty()) {
-        cout << "Full Repo Path: " << full_path << endl;
+        std::cout << "Full Repo Path: " << full_path << std::endl;
         createGraphFolder();
         createIssueFolder();
         createAgent(full_path);
     } else {
-        cout << "Could not retrieve repo path." << endl;
+        std::cout << "Could not retrieve repo path." << std::endl;
     }
 
     return 0;
