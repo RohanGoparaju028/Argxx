@@ -1,6 +1,6 @@
 // The purpose of this file to create Gemma4:e4b that is served through ollama for an ai agent
 #include "Agent.hpp"
-
+#include<algorithm>
 #include <yaml-cpp/yaml.h>
 
 #include <filesystem>
@@ -10,10 +10,10 @@
 
 const std::string configfile = "agent.yaml";
 const std::vector agent_fields = {"name", "description", "model", "auth", "system_prompt", "tools"};
-void configureModel() {
+std::unordered_map<std::string, std::string> configureModel() {
     if (!std::filesystem::exists(configfile)) {
         std::cerr << configfile << " does not exist" << std::endl;
-        return;
+        return {};
     }
     try {
         YAML::Node config = YAML::LoadFile(configfile);
@@ -30,17 +30,28 @@ void configureModel() {
                 emitter << node;
                 agent_info[field] = emitter.c_str();
             }
-            for (auto element : agent_info) {
-                std::cout << element.first << " " << element.second;
-            }
-            std::cout << std::endl;
         }
-
+	YAML::Emitter emitter;
+	emitter << agent_info["tools"];
+	std::string str = emitter.c_str();
+	str.erase(std::remove(str.begin(),str.end(),'-'),str.end());
+	auto it = std::find(str.begin(),str.end(),' ');
+	if(it != str.end()) {
+	  str.erase(it);
+	}
+	size_t pos = 0;
+        while ((pos = str.find("\\n", pos)) != std::string::npos) {
+            str.erase(pos, 2); 
+        }
+	agent_info["tools"] = str;
+	std::cout<<agent_info["tools"]<<std::endl;
+        return agent_info;
     } catch (const YAML::Exception& e) {
         std::cerr << "Failed to parse " << configfile << ": " << e.what() << std::endl;
+        return {};
     }
 }
 void createAgent(const std::string& repo) {
     (void)repo;
-    configureModel();
+    auto agent_details = configureModel();
 }
