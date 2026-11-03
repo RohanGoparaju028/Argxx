@@ -33,8 +33,26 @@ file(GLOB HEADERS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
 )
+# Prepare Folder.cpp's directories and copy existing contents on every build.
+file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/copy_agent_folders.cmake" CONTENT "
+file(MAKE_DIRECTORY
+    \"${CMAKE_CURRENT_BINARY_DIR}/.Argxx/.graph\"
+    \"${CMAKE_CURRENT_BINARY_DIR}/.Argxx/.issue\"
+)
+if(IS_DIRECTORY \"${CMAKE_CURRENT_SOURCE_DIR}/.Argxx\" AND
+   NOT \"${CMAKE_CURRENT_SOURCE_DIR}\" STREQUAL \"${CMAKE_CURRENT_BINARY_DIR}\")
+    file(COPY \"${CMAKE_CURRENT_SOURCE_DIR}/.Argxx\"
+         DESTINATION \"${CMAKE_CURRENT_BINARY_DIR}\")
+endif()
+")
+add_custom_target(copy_agent_folders ALL
+    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/copy_agent_folders.cmake"
+    COMMENT "Preparing and copying .Argxx folders to the build directory"
+    VERBATIM
+)
 
 add_executable(agent ${SOURCES} ${HEADERS})
+add_dependencies(agent copy_agent_folders)
 
 target_link_libraries(agent cpr::cpr nlohmann_json::nlohmann_json yaml-cpp::yaml-cpp dotenv)
 
@@ -53,3 +71,4 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/.env)
         COMMENT "Copying .env and agent.yaml to build directory"
     )
 endif()
+

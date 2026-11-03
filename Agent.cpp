@@ -44,7 +44,6 @@ std::unordered_map<std::string, std::string> configureModel() {
             str.erase(pos, 2); 
         }
 	agent_info["tools"] = str;
-	std::cout<<agent_info["tools"]<<std::endl;
         return agent_info;
     } catch (const YAML::Exception& e) {
         std::cerr << "Failed to parse " << configfile << ": " << e.what() << std::endl;
@@ -54,4 +53,6 @@ std::unordered_map<std::string, std::string> configureModel() {
 void createAgent(const std::string& repo) {
     (void)repo;
     auto agent_details = configureModel();
+
+    if (agent_details.empty()) return;
 }
