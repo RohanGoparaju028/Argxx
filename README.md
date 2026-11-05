@@ -2,7 +2,7 @@
 
 A C++ coding assistant that uses a locally served model to inspect repositories,
 draft fixes, run tests, and export reviewable patches. Inspired by local developer-agent
-research; Argxx is an independent project, not a competition submission.
+research.
 
 The everyday workflow runs in C++17. Python is only needed for optional LoRA training.
 Supported platforms: macOS and Linux.
