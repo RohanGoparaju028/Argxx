@@ -148,7 +148,7 @@ It does not support renames, deletions, binary edits, automatic dependency insta
 or automatic commits/PRs. GitHub analysis uses a containment graph and keyword retrieval,
 not AST/call graphs or vector search. Larger real-world repair performance is not yet measured.
 
-##Note
+## Note
 Gen AI is used in most of the project.So use with catution.
 The project requires Github PAT Token stored it in .env of root folder.
 
