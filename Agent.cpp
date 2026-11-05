@@ -25,7 +25,7 @@ std::unordered_map<std::string, std::string> configureModel() {
     }
     try {
         YAML::Node config = YAML::LoadFile(configfile);
-        std::cout << "Loaded " << configfile << " successfully (Work in progress)" << std::endl;
+        std::cout << "Loaded " << configfile << " successfully" << std::endl;
         std::unordered_map<std::string, std::string> agent_info;
         for (const auto& field : agent_fields) {
             YAML::Node node = config["agent"][field];
@@ -39,19 +39,6 @@ std::unordered_map<std::string, std::string> configureModel() {
                 agent_info[field] = emitter.c_str();
             }
         }
-        YAML::Emitter emitter;
-        emitter << agent_info["tools"];
-        std::string str = emitter.c_str();
-        str.erase(std::remove(str.begin(), str.end(), '-'), str.end());
-        auto it = std::find(str.begin(), str.end(), ' ');
-        if (it != str.end()) {
-            str.erase(it);
-        }
-        size_t pos = 0;
-        while ((pos = str.find("\\n", pos)) != std::string::npos) {
-            str.erase(pos, 2);
-        }
-        agent_info["tools"] = str;
         return agent_info;
     } catch (const YAML::Exception& e) {
         std::cerr << "Failed to parse " << configfile << ": " << e.what() << std::endl;
@@ -88,15 +75,15 @@ json initialMessages(const std::unordered_map<std::string, std::string>& details
                "Return Markdown with concrete file references and verification steps."}}});
 }
 
-std::string ollamaReply(const json& messages, int maxTokens) {
-    const json request = {{"model", "gemma4:e4b"},
+std::string ollamaReply(const json& messages, int maxTokens, const std::string& model,
+                        const std::string& endpoint) {
+    const json request = {{"model", model},
                           {"stream", false},
                           {"think", false},
                           {"messages", messages},
                           {"options", {{"num_predict", maxTokens}, {"num_ctx", 32768}}}};
     const auto response =
-        cpr::Post(cpr::Url{"http://localhost:11434/api/chat"},
-                  cpr::Header{{"Content-Type", "application/json"}},
+        cpr::Post(cpr::Url{endpoint}, cpr::Header{{"Content-Type", "application/json"}},
                   cpr::Body{request.dump(-1, ' ', false, json::error_handler_t::replace)},
                   cpr::ConnectTimeout{5000}, cpr::Timeout{300000});
     checkAgentResponse(response, "Ollama");
@@ -110,15 +97,17 @@ std::string ollamaReply(const json& messages, int maxTokens) {
 }
 
 bool githubToolEnabled(const std::string& tools) {
-    // Accept configureModel's existing flattened string without changing its implementation.
-    return std::regex_search(tools,
-                             std::regex(R"(name:\s*github_api\s+enabled:\s*true(?:\s|"|$))"));
+    const auto nodes = YAML::Load(tools);
+    return std::any_of(nodes.begin(), nodes.end(), [](const auto& node) {
+        return node["name"].template as<std::string>("") == "github_api" &&
+               node["enabled"].template as<bool>(false);
+    });
 }
 void runAgentChat(const RepositoryContext& context, const json& base, int maxTokens,
                   const std::string& issuePath,
                   const std::function<std::string(const json&, int)>& requestReply,
                   std::istream& inputStream, std::ostream& output, std::ostream& errors) {
-    output << "Chat with gemma4:e4b. Type exit to finish.\n";
+    output << "Chat with the configured model. Type exit to finish.\n";
     auto messages = base;
     json transcript = json::array();
     std::string input;
@@ -154,13 +143,20 @@ void runAgentChat(const RepositoryContext& context, const json& base, int maxTok
 }
 }  // namespace
 
-void createAgent(const std::string& repo) {
+bool createAgent(const std::string& repo) {
     auto agent_details = configureModel();
-    if (agent_details.empty()) return;
+    if (agent_details.empty()) return false;
     try {
         if (!githubToolEnabled(agent_details.at("tools")))
             throw std::runtime_error("Enable github_api in agent.yaml to inspect the repository.");
-        const int maxTokens = YAML::Load(agent_details.at("model"))["max_tokens"].as<int>(1500);
+        const auto modelConfig = YAML::Load(agent_details.at("model"));
+        const int maxTokens = modelConfig["max_tokens"].as<int>(1500);
+        const auto model = modelConfig["name"].as<std::string>("gemma4:e4b");
+        const auto endpoint =
+            modelConfig["endpoint"].as<std::string>("http://127.0.0.1:11434/api/chat");
+        const auto reply = [&](const json& messages, int tokens) {
+            return ollamaReply(messages, tokens, model, endpoint);
+        };
         if (maxTokens <= 0) throw std::runtime_error("model.max_tokens must be positive.");
         const auto auth = YAML::Load(agent_details.at("auth"));
         std::string token = LoadEnvVar(auth["token_env_var"].as<std::string>("GITHUB_PAT"));
@@ -188,10 +184,10 @@ void createAgent(const std::string& repo) {
             messages.push_back({{"role", "user"},
                                 {"content", repositoryExcerpt(context, task) +
                                                 "\nEnd of repository evidence.\nTask: " + task}});
-            return ollamaReply(messages, maxTokens);
+            return reply(messages, maxTokens);
         };
-        std::cout << "Saved graph and " << context.issues.size()
-                  << " open issues. Connecting to gemma4:e4b..." << std::endl;
+        std::cout << "Saved graph and " << context.issues.size() << " open issues. Connecting to "
+                  << model << "..." << std::endl;
         try {
             const auto analysis = analyze(
                 "Explain the architecture and evidence-backed relationships between files in this "
@@ -213,9 +209,10 @@ void createAgent(const std::string& repo) {
             std::cerr << "Automatic analysis stopped: " << error.what()
                       << "\nSnapshots are saved. Chat is available to retry Ollama." << std::endl;
         }
-        runAgentChat(context, base, maxTokens, issuePath, ollamaReply, std::cin, std::cout,
-                     std::cerr);
+        runAgentChat(context, base, maxTokens, issuePath, reply, std::cin, std::cout, std::cerr);
+        return true;
     } catch (const std::exception& error) {
         std::cerr << "Agent failed: " << error.what() << std::endl;
+        return false;
     }
 }

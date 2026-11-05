@@ -1,23 +1,23 @@
 #include <iostream>
 
 #include "Agent.hpp"
-#include "Folder.hpp"
-#include "GithubAccount.hpp"
+#include "Repair.hpp"
 
-int main() {
-    std::string repo_name;
-    std::cout << "Enter your repo name: ";
-    std::cin >> repo_name;
-    std::string full_path = GetRepoFullPath(repo_name);
-
-    if (!full_path.empty()) {
-        std::cout << "Full Repo Path: " << full_path << std::endl;
-        createGraphFolder();
-        createIssueFolder();
-        createAgent(full_path);
-    } else {
-        std::cout << "Could not retrieve repo path." << std::endl;
+int main(int argc, char** argv) {
+    if (argc > 1 && std::string(argv[1]) == "chat") {
+        if (argc > 3) {
+            std::cerr << "Usage: agent chat [owner/repository]\n";
+            return 2;
+        }
+        std::string repo;
+        if (argc == 3)
+            repo = argv[2];
+        else {
+            std::cout << "GitHub owner/repository: ";
+            std::getline(std::cin, repo);
+        }
+        if (repo.empty()) return 2;
+        return createAgent(repo) ? 0 : 1;
     }
-
-    return 0;
+    return argxx::runCli(argc, argv);
 }

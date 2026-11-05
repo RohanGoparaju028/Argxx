@@ -1,82 +1,45 @@
-cmake_minimum_required(VERSION 4.1.2)
-
-project(Argxx LANGUAGES CXX)
-
+cmake_minimum_required(VERSION 3.20)
+project(Argxx VERSION 0.2.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
-
-include(FetchContent)
-
-set(BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
-
-FetchContent_Declare(
-    dotenv-cpp
-    GIT_REPOSITORY https://github.com/laserpants/dotenv-cpp.git
-    GIT_TAG        master
-)
-FetchContent_MakeAvailable(dotenv-cpp)
-
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+if(NOT UNIX)
+    message(FATAL_ERROR "Argxx currently supports macOS and Linux (POSIX process execution).")
+endif()
 find_package(cpr REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(yaml-cpp REQUIRED)
-
-# Automatically detect C++ source and header files without having to re-run cmake manually
-file(GLOB SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-)
-file(GLOB HEADERS CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h"
-)
-# Prepare Folder.cpp's directories and copy existing contents on every build.
-file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/copy_agent_folders.cmake" CONTENT "
-file(MAKE_DIRECTORY
-    \"${CMAKE_CURRENT_BINARY_DIR}/.Argxx/.graph\"
-    \"${CMAKE_CURRENT_BINARY_DIR}/.Argxx/.issue\"
-)
-if(IS_DIRECTORY \"${CMAKE_CURRENT_SOURCE_DIR}/.Argxx\" AND
-   NOT \"${CMAKE_CURRENT_SOURCE_DIR}\" STREQUAL \"${CMAKE_CURRENT_BINARY_DIR}\")
-    file(COPY \"${CMAKE_CURRENT_SOURCE_DIR}/.Argxx\"
-         DESTINATION \"${CMAKE_CURRENT_BINARY_DIR}\")
+find_package(Threads REQUIRED)
+if(TARGET yaml-cpp::yaml-cpp)
+    set(ARGXX_YAML_TARGET yaml-cpp::yaml-cpp)
+else()
+    set(ARGXX_YAML_TARGET yaml-cpp)
 endif()
-")
-add_custom_target(copy_agent_folders ALL
-    COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/copy_agent_folders.cmake"
-    COMMENT "Preparing and copying .Argxx folders to the build directory"
-    VERBATIM
-)
-
-add_executable(agent ${SOURCES} ${HEADERS})
-add_dependencies(agent copy_agent_folders)
-
-target_link_libraries(agent cpr::cpr nlohmann_json::nlohmann_json yaml-cpp::yaml-cpp dotenv)
-
-# Copy .env to build directory
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/.env)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/.env ${CMAKE_CURRENT_BINARY_DIR}/.env COPYONLY)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/agent.yaml ${CMAKE_CURRENT_BINARY_DIR}/agent.yaml COPYONLY)
-    add_custom_command(
-        TARGET agent POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/.env
-            ${CMAKE_CURRENT_BINARY_DIR}/.env
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/agent.yaml
-            ${CMAKE_CURRENT_BINARY_DIR}/agent.yaml
-        COMMENT "Copying .env and agent.yaml to build directory"
-    )
-endif()
-
-option(ARGXX_BUILD_TESTS "Build offline agent interaction checks" OFF)
+add_library(argxx_repair Repair.cpp Process.cpp)
+target_include_directories(argxx_repair PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(argxx_repair PUBLIC cpr::cpr nlohmann_json::nlohmann_json Threads::Threads)
+add_executable(agent main.cpp Cli.cpp Agent.cpp GithubAccount.cpp RepositoryContext.cpp Folder.cpp)
+target_link_libraries(agent PRIVATE argxx_repair ${ARGXX_YAML_TARGET})
+target_compile_definitions(agent PRIVATE ARGXX_TRAINING_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/scripts")
+# Configuration is always available, with no secret or report copying into builds.
+configure_file(agent.yaml agent.yaml COPYONLY)
+install(TARGETS agent RUNTIME DESTINATION bin)
+install(FILES agent.yaml DESTINATION share/argxx)
+install(FILES scripts/train_lora.py scripts/requirements-training.txt DESTINATION share/argxx/training)
+option(ARGXX_BUILD_TESTS "Build offline regression checks" OFF)
 if(ARGXX_BUILD_TESTS)
     enable_testing()
     add_executable(agent_interaction_tests tests/AgentInteractionTests.cpp RepositoryContext.cpp GithubAccount.cpp)
-    target_link_libraries(agent_interaction_tests PRIVATE cpr::cpr nlohmann_json::nlohmann_json yaml-cpp::yaml-cpp dotenv)
+    target_link_libraries(agent_interaction_tests PRIVATE cpr::cpr nlohmann_json::nlohmann_json ${ARGXX_YAML_TARGET})
     add_test(NAME agent_interaction_tests COMMAND agent_interaction_tests)
     set_tests_properties(agent_interaction_tests PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_executable(repair_tests tests/RepairTests.cpp)
+    target_link_libraries(repair_tests PRIVATE argxx_repair)
+    add_test(NAME repair_tests COMMAND repair_tests)
+    add_test(NAME cli_help COMMAND agent --help)
+    add_test(NAME cli_bad_option COMMAND agent repair --unknown value)
+    set_tests_properties(cli_bad_option PROPERTIES WILL_FAIL TRUE)
+    add_test(NAME cli_artifacts COMMAND ${CMAKE_COMMAND}
+        -DAGENT=$<TARGET_FILE:agent> -DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/cli-test
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/CliArtifacts.cmake)
 endif()

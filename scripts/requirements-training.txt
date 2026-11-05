@@ -1,0 +1,6 @@
+# Resolve versions compatible with your exact Gemma checkpoint; training_report records them.
+torch>=2.6
+transformers>=4.51
+peft>=0.15
+accelerate>=1.5
+safetensors>=0.5

@@ -21,7 +21,7 @@ jobs:
 
       - name: Check code formatting
         run: |
-          clang-format --dry-run --Werror *.cpp *.hpp
+          clang-format --dry-run --Werror *.cpp *.hpp tests/*.cpp
 
   security-checks:
     name: Security & Static Analysis
@@ -67,8 +67,11 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DARGXX_BUILD_TESTS=ON
 
       - name: Build project
         run: |
           cmake --build build --config Release
+
+      - name: Run regression tests
+        run: ctest --test-dir build --output-on-failure

@@ -3,6 +3,6 @@
 
 #include <string>
 
-void createAgent(const std::string& repo);
+bool createAgent(const std::string& repo);
 
 #endif

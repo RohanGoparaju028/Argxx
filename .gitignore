@@ -4,3 +4,5 @@ build/
 .Argxx/
 .vscode/
 .idea/
+__pycache__/
+*.pyc
