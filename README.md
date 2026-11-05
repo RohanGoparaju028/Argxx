@@ -139,13 +139,17 @@ It requires a compatible local Hugging Face checkpoint, training dependencies, s
 hardware, and reviewed training examples. Training is not required to use Argxx.
 Ollama model files are not directly usable as a training checkpoint.
 See [REPAIR_PIPELINE.md](REPAIR_PIPELINE.md#optional-post-training).
-
-## Scope
+This feature is not tested and the code is genereated by ai.
+## Scope 
 
 The repair engine edits text files up to 100 KB and searches tracked visible files.
 Hidden directories, symlinks, dependency/build folders, and validation tests are protected.
 It does not support renames, deletions, binary edits, automatic dependency installation,
 or automatic commits/PRs. GitHub analysis uses a containment graph and keyword retrieval,
 not AST/call graphs or vector search. Larger real-world repair performance is not yet measured.
+
+##Note
+Gen AI is used in most of the project.So use with catution.
+The project requires Github PAT Token stored it in .env of root folder.
 
 Apache-2.0 license. See [LICENSE](LICENSE).
